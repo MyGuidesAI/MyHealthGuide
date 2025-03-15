@@ -1,0 +1,54 @@
+services:
+  # Development service with mounted source code for fast iteration
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: myhealthguide:dev
+    container_name: myhealthguide-dev
+    ports:
+      - "3000:3000" 
+    volumes:
+      - .:/app:delegated  # Source code for development
+      - cargo-cache:/usr/local/cargo/registry  # Cache dependencies to speed up builds
+      - MyHealthGuide-data:/app/data  # Only persist the database data
+    env_file:
+      - .env
+    restart: unless-stopped
+    # Add healthcheck to verify the API is running
+    healthcheck:
+      test: ["CMD", "/app/scripts/docker-healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s  # Longer start period for development builds
+
+  # Production service with optimized build
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: myhealthguide:latest
+    container_name: myhealthguide-prod
+    ports:
+      - "3001:3000"  # Different port to avoid conflict with dev service
+    volumes:
+      - MyHealthGuide-data-prod:/app/data  # Only persist the database data
+    env_file:
+      - .env
+    restart: unless-stopped
+    # Add healthcheck to verify the API is running
+    healthcheck:
+      test: ["CMD", "/app/scripts/docker-healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s  # Faster startup for production builds
+
+volumes:
+  MyHealthGuide-data:
+    name: myhealthguide-data-dev
+  MyHealthGuide-data-prod:
+    name: myhealthguide-data-prod
+  cargo-cache:
+    name: myhealthguide-cargo-cache 

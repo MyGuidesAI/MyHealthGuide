@@ -1,0 +1,58 @@
+[package]
+name = "MyHealthGuide-api"
+version = "0.1.0"
+edition = "2021"
+authors = ["MyHealthGuide Team <dev@myhealth.org>"]
+description = "Public API layer for MyHealthGuide application"
+
+[dependencies]
+# Core dependencies
+tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Database dependencies
+sqlx = { workspace = true }
+
+# API documentation
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Other dependencies
+dotenv = { workspace = true }
+validator = { workspace = true }
+tower-http = { workspace = true }
+futures = { workspace = true }
+indexmap = "2.1"
+once_cell = "1.19"
+async-trait = "0.1.77"
+
+# Internal dependencies
+MyHealthGuide-domain = { path = "../MyHealthGuide-domain", features = ["mock"] }
+MyHealthGuide-data = { path = "../MyHealthGuide-data" }
+
+[dev-dependencies]
+reqwest = { version = "0.11.22", features = ["json"] }
+tokio-test = "0.4.3"
+tower = { version = "0.4.13", features = ["util"] }
+mime = "0.3.17"
+
+[features]
+default = ["sqlite"]
+sqlite = ["MyHealthGuide-domain/sqlite"]
+mysql = ["MyHealthGuide-domain/mysql"]
+postgres = ["MyHealthGuide-domain/postgres"]
+mock = ["MyHealthGuide-domain/mock"]
+
+[[bin]]
+name = "MyHealthGuide-api"
+path = "src/bin/main.rs" 

@@ -1,0 +1,44 @@
+# Development Dockerfile for fast iteration
+FROM rust:1.81
+
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user
+RUN adduser --disabled-password --gecos "" appuser
+
+# Set up the working directory
+WORKDIR /app
+
+# Create and set permissions for data directory and cargo registry
+RUN mkdir -p /app/data && \
+    chown -R appuser:appuser /app && \
+    chmod 777 /app/data
+
+# Create and set permissions for cargo registry
+RUN mkdir -p /usr/local/cargo/registry /usr/local/cargo/git && \
+    chown -R appuser:appuser /usr/local/cargo
+
+# Copy startup scripts
+COPY --chmod=755 scripts/docker-entrypoint.sh /docker-entrypoint.sh
+COPY --chmod=755 scripts/docker-healthcheck.sh /app/scripts/docker-healthcheck.sh
+
+# Set up the user
+USER appuser
+
+# Expose the API port
+EXPOSE 3000
+
+# Health check to verify the API is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD /app/scripts/docker-healthcheck.sh
+
+# Set up environment variables
+ENV RUST_BACKTRACE=1
+ENV RUST_LOG=info
+
+# Start the application
+ENTRYPOINT ["/docker-entrypoint.sh"] 

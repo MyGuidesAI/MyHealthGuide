@@ -1,0 +1,70 @@
+[package]
+name = "MyHealthGuide-domain"
+version = "0.1.0"
+edition = "2021"
+description = "Domain layer for MyHealthGuide API"
+authors = ["MyHealthGuide Team <dev@myhealth.org>"]
+
+[dependencies]
+# Core dependencies
+tokio = { workspace = true }
+axum = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures = { workspace = true }
+
+# Database dependencies
+sqlx = { workspace = true }
+
+# Authentication dependencies
+jsonwebtoken = { workspace = true }
+oauth2 = { workspace = true, optional = true }
+openidconnect = { workspace = true, optional = true, features = ["reqwest", "accept-rfc3339-timestamps"] }
+jwt-simple = { workspace = true }
+base64 = "0.21.7"
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Other dependencies
+reqwest = { workspace = true, optional = true }
+validator = { workspace = true, optional = true }
+url = { version = "2.5", optional = true }
+urlencoding = { version = "2.1", optional = true }
+
+# Web server components
+tower = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+
+# API Documentation
+utoipa = { workspace = true, optional = true }
+
+# Utilities
+once_cell = { version = "1.19" }
+rand = { version = "0.8" }
+async-trait = { version = "0.1.77", optional = true }
+
+# Internal dependencies
+MyHealthGuide-data = { path = "../MyHealthGuide-data", optional = true, features = ["mock"] }
+
+[dev-dependencies]
+mockall = "0.12.1"
+tokio-test = "0.4.3"
+
+[features]
+default = ["with-data", "with-axum", "with-oidc", "with-api", "with-web", "with-validation"]
+with-data = ["dep:MyHealthGuide-data"]
+with-axum = ["dep:axum"]
+with-oidc = ["dep:openidconnect", "dep:reqwest", "dep:oauth2", "dep:url", "dep:urlencoding"]
+with-api = ["dep:utoipa"]
+with-web = ["dep:tower", "dep:tower-http"]
+with-validation = ["dep:validator", "dep:async-trait"]
+mock = []
+sqlite = ["MyHealthGuide-data?/sqlite"]
+mysql = ["MyHealthGuide-data?/mysql"]
+postgres = ["MyHealthGuide-data?/postgres"] 

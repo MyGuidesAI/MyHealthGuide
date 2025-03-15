@@ -1,0 +1,53 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Build artifacts
+target/
+**/target/
+**/*.rs.bk
+
+# Docker files
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Documentation and misc
+README.md
+CHANGELOG.md
+LICENSE
+docs/
+.cursor/
+*.md
+
+# Local development artifacts
+.env*
+**/*.db
+**/*.db-journal
+**/*.sqlite
+**/*.sqlite-journal
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+
+# Rust specific
+**/.cargo-ok
+**/.rustc_info.json
+
+# Large test data or fixtures
+**/fixtures/
+**/test_data/
+**/*.zip
+**/*.tar
+**/*.gz 
