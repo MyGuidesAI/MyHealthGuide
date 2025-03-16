@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
-use tracing::info;
+use tracing::{info, debug, warn, error};
 
 /// Types of authentication events
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -88,37 +88,37 @@ impl AuthEvent {
             auth_method: None,
         }
     }
-    
+
     /// Set the IP address
     pub fn with_ip(mut self, ip: impl Into<String>) -> Self {
         self.ip_address = Some(ip.into());
         self
     }
-    
+
     /// Set the user agent
     pub fn with_user_agent(mut self, user_agent: impl Into<String>) -> Self {
         self.user_agent = Some(user_agent.into());
         self
     }
-    
+
     /// Set the details
     pub fn with_details(mut self, details: impl Into<String>) -> Self {
         self.details = Some(details.into());
         self
     }
-    
+
     /// Set the resource
     pub fn with_resource(mut self, resource: impl Into<String>) -> Self {
         self.resource = Some(resource.into());
         self
     }
-    
+
     /// Set the duration
     pub fn with_duration(mut self, duration_ms: u64) -> Self {
         self.duration_ms = Some(duration_ms);
         self
     }
-    
+
     /// Set the authentication method
     pub fn with_auth_method(mut self, auth_method: impl Into<String>) -> Self {
         self.auth_method = Some(auth_method.into());
@@ -132,7 +132,7 @@ pub fn log_auth_event(event: AuthEvent) {
     let user_id_str = event.user_id.as_deref().unwrap_or("anonymous");
     let status = if event.success { "SUCCESS" } else { "FAILURE" };
     let details = event.details.as_deref().unwrap_or("");
-    
+
     info!(
         "AUTH-LOG [{}] [{}] [{}] [{}] {}",
         event.event_type,
@@ -141,7 +141,7 @@ pub fn log_auth_event(event: AuthEvent) {
         event.timestamp.to_rfc3339(),
         details
     );
-    
+
     // In a real application, we'd also log to a database or other persistent storage
     #[cfg(feature = "db-logging")]
     {
@@ -155,15 +155,15 @@ pub fn log_auth_event(event: AuthEvent) {
 pub fn log_successful_login(user_id: &str, ip_address: Option<&str>, user_agent: Option<&str>) {
     let mut event = AuthEvent::new(AuthEventType::Login, Some(user_id), true)
         .with_auth_method("password");
-    
+
     if let Some(ip) = ip_address {
         event = event.with_ip(ip);
     }
-    
+
     if let Some(ua) = user_agent {
         event = event.with_user_agent(ua);
     }
-    
+
     log_auth_event(event);
 }
 
@@ -172,11 +172,11 @@ pub fn log_failed_login(username: &str, ip_address: Option<&str>, reason: &str) 
     let mut event = AuthEvent::new(AuthEventType::FailedLogin, Some(username), false)
         .with_details(reason)
         .with_auth_method("password");
-    
+
     if let Some(ip) = ip_address {
         event = event.with_ip(ip);
     }
-    
+
     log_auth_event(event);
 }
 
@@ -184,18 +184,18 @@ pub fn log_failed_login(username: &str, ip_address: Option<&str>, reason: &str) 
 pub fn log_token_validation(user_id: &str, token_type: &str, success: bool) {
     let event = AuthEvent::new(AuthEventType::TokenValidation, Some(user_id), success)
         .with_auth_method(token_type);
-    
+
     log_auth_event(event);
 }
 
 /// Log a token refresh
 pub fn log_token_refresh(user_id: &str, success: bool, details: Option<&str>) {
     let mut event = AuthEvent::new(AuthEventType::TokenRefresh, Some(user_id), success);
-    
+
     if let Some(d) = details {
         event = event.with_details(d);
     }
-    
+
     log_auth_event(event);
 }
 
@@ -208,29 +208,37 @@ pub fn log_logout(user_id: &str) {
 /// Log a token revocation
 pub fn log_token_revocation(user_id: &str, reason: Option<&str>) {
     let mut event = AuthEvent::new(AuthEventType::TokenRevocation, Some(user_id), true);
-    
+
     if let Some(r) = reason {
         event = event.with_details(r);
     }
-    
+
     log_auth_event(event);
 }
 
 /// Log an access denied event
 pub fn log_access_denied(user_id: &str, resource: &str, required_roles: &[String]) {
     let details = format!("Required roles: {}", required_roles.join(", "));
-    
+
     let event = AuthEvent::new(AuthEventType::AccessDenied, Some(user_id), false)
         .with_resource(resource)
         .with_details(details);
-    
+
     log_auth_event(event);
+}
+
+/// Store auth event in database (stub implementation)
+#[cfg(feature = "db-logging")]
+fn store_auth_event_in_database(event: &AuthEvent) -> Result<(), String> {
+    // This is a stub implementation that would be replaced with actual database code
+    debug!("Would store auth event in database: {:?}", event);
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_create_auth_event() {
         let event = AuthEvent::new(AuthEventType::Login, Some("user123"), true)
@@ -240,7 +248,7 @@ mod tests {
             .with_resource("/admin")
             .with_duration(150)
             .with_auth_method("password");
-        
+
         assert_eq!(event.event_type as u8, AuthEventType::Login as u8);
         assert_eq!(event.user_id, Some("user123".to_string()));
         assert_eq!(event.success, true);
@@ -251,11 +259,11 @@ mod tests {
         assert_eq!(event.duration_ms, Some(150));
         assert_eq!(event.auth_method, Some("password".to_string()));
     }
-    
+
     #[test]
     fn test_event_type_display() {
         assert_eq!(AuthEventType::Login.to_string(), "LOGIN");
         assert_eq!(AuthEventType::Logout.to_string(), "LOGOUT");
         assert_eq!(AuthEventType::FailedLogin.to_string(), "FAILED_LOGIN");
     }
-} 
+}

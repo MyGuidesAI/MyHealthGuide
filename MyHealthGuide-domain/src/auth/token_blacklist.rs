@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, Duration};
-use std::future::Future;
-use std::pin::Pin;
-use chrono::{DateTime, Utc};
+use std::time::SystemTime;
 use tracing::{debug, info, warn};
 use once_cell::sync::Lazy;
 
@@ -41,7 +38,7 @@ pub struct TokenBlacklist {
     /// Key: user_id or jti (JWT ID) if available
     /// Value: (expiration timestamp, revocation timestamp)
     revoked_tokens: Arc<Mutex<HashMap<String, (SystemTime, SystemTime)>>>,
-    
+
     /// Maximum size of the blacklist before aggressive pruning
     max_size: usize,
 }
@@ -69,7 +66,7 @@ impl TokenBlacklist {
             max_size: 10000, // Default size limit
         }
     }
-    
+
     /// Create a new token blacklist with custom maximum size
     ///
     /// This allows configuring the maximum number of tokens that can be stored
@@ -91,7 +88,7 @@ impl TokenBlacklist {
             max_size,
         }
     }
-    
+
     /// Add a token to the blacklist with specific expiration
     ///
     /// When the blacklist reaches its maximum size, it will first attempt to
@@ -114,23 +111,23 @@ impl TokenBlacklist {
     pub fn revoke_token(&self, token_id: &str, expiration: SystemTime) {
         let revocation_time = SystemTime::now();
         let mut tokens = self.revoked_tokens.lock().unwrap();
-        
+
         // Check size before adding
         if tokens.len() >= self.max_size {
             warn!("Token blacklist reached max size ({}), performing aggressive cleanup", self.max_size);
             self.cleanup_expired_tokens_internal(&mut tokens);
-            
+
             // If still at capacity, remove oldest entries
             if tokens.len() >= self.max_size {
                 self.remove_oldest_entries(&mut tokens, self.max_size / 2);
             }
         }
-        
+
         // Add the token to the blacklist
         tokens.insert(token_id.to_string(), (expiration, revocation_time));
         info!("Token revoked: {}", token_id);
     }
-    
+
     /// Check if a token is in the blacklist (has been revoked)
     ///
     /// # Arguments
@@ -156,7 +153,7 @@ impl TokenBlacklist {
         let tokens = self.revoked_tokens.lock().unwrap();
         tokens.contains_key(token_id)
     }
-    
+
     /// Get the number of tokens in the blacklist
     ///
     /// # Returns
@@ -173,7 +170,7 @@ impl TokenBlacklist {
         let tokens = self.revoked_tokens.lock().unwrap();
         tokens.len()
     }
-    
+
     /// Remove expired tokens from the blacklist
     ///
     /// This method should be called periodically to clean up the blacklist
@@ -196,7 +193,7 @@ impl TokenBlacklist {
         let mut tokens = self.revoked_tokens.lock().unwrap();
         self.cleanup_expired_tokens_internal(&mut tokens)
     }
-    
+
     /// Internal implementation of cleanup that works with an already-locked HashMap
     ///
     /// This method is used internally to avoid locking the HashMap multiple times
@@ -204,20 +201,20 @@ impl TokenBlacklist {
     fn cleanup_expired_tokens_internal(&self, tokens: &mut HashMap<String, (SystemTime, SystemTime)>) -> usize {
         let now = SystemTime::now();
         let before_count = tokens.len();
-        
+
         // Remove entries where the expiration time is in the past
         tokens.retain(|_, (expiration, _)| {
             now.duration_since(*expiration).is_err()
         });
-        
+
         let removed = before_count - tokens.len();
         if removed > 0 {
             debug!("Removed {} expired tokens from blacklist", removed);
         }
-        
+
         removed
     }
-    
+
     /// Remove the oldest entries from the blacklist
     ///
     /// This is used as a fallback when cleanup_expired_tokens doesn't free up enough space.
@@ -228,22 +225,22 @@ impl TokenBlacklist {
             .iter()
             .map(|(k, v)| (k.clone(), *v))
             .collect();
-        
+
         // Sort by revocation time (oldest first)
         let mut sorted_entries = entries_clone.clone();
         sorted_entries.sort_by(|a, b| a.1.1.cmp(&b.1.1));
-        
+
         // Take the oldest entries to remove (up to count)
         let to_remove: Vec<String> = sorted_entries.iter()
             .take(count)
             .map(|(k, _)| k.clone())
             .collect();
-        
+
         // Remove these entries
         for key in to_remove {
             tokens.remove(key.as_str());
         }
-        
+
         debug!("Removed {} oldest entries from token blacklist", count);
     }
 }
@@ -291,16 +288,17 @@ pub fn blacklist() -> &'static TokenBlacklist {
 #[cfg(feature = "with-tokio")]
 pub fn start_cleanup_task() {
     use tokio::time;
-    
+    use std::time::Duration;
+
     tokio::spawn(async move {
         let cleanup_interval = Duration::from_secs(3600); // 1 hour
         let mut interval = time::interval(cleanup_interval);
-        
+
         loop {
             interval.tick().await;
             debug!("Running scheduled token blacklist cleanup");
             let removed = blacklist().cleanup_expired_tokens();
-            debug!("Removed {} expired tokens, {} remain in blacklist", 
+            debug!("Removed {} expired tokens, {} remain in blacklist",
                   removed, blacklist().size());
         }
     });
@@ -310,56 +308,56 @@ pub fn start_cleanup_task() {
 mod tests {
     use super::*;
     use std::thread::sleep;
-    
+
     #[test]
     fn test_revoke_and_check_token() {
         let blacklist = TokenBlacklist::new();
-        
+
         // Set expiration to 1 second in the future
         let expiration = SystemTime::now() + Duration::from_secs(1);
-        
+
         blacklist.revoke_token("test-token-1", expiration);
-        
+
         // Token should be revoked
         assert!(blacklist.is_revoked("test-token-1"));
-        
+
         // Unknown token should not be revoked
         assert!(!blacklist.is_revoked("unknown-token"));
     }
-    
+
     #[test]
     fn test_cleanup_expired_tokens() {
         let blacklist = TokenBlacklist::new();
-        
+
         // Add some tokens with different expirations
         let expired = SystemTime::now() - Duration::from_secs(1);
         let not_expired = SystemTime::now() + Duration::from_secs(60);
-        
+
         blacklist.revoke_token("expired-token", expired);
         blacklist.revoke_token("valid-token", not_expired);
-        
+
         // Verify both tokens are in the blacklist initially
         assert_eq!(blacklist.size(), 2);
-        
+
         // Run cleanup
         let removed = blacklist.cleanup_expired_tokens();
-        
+
         // One token should be removed
         assert_eq!(removed, 1);
         assert_eq!(blacklist.size(), 1);
-        
+
         // The expired token should be gone
         assert!(!blacklist.is_revoked("expired-token"));
-        
+
         // The valid token should still be there
         assert!(blacklist.is_revoked("valid-token"));
     }
-    
+
     #[test]
     fn test_max_size_and_oldest_removal() {
         // Create a small blacklist for testing
         let blacklist = TokenBlacklist::with_max_size(5);
-        
+
         // Add tokens up to max size
         for i in 0..5 {
             let expiration = SystemTime::now() + Duration::from_secs(300);
@@ -367,21 +365,21 @@ mod tests {
             // Small sleep to ensure different revocation times
             sleep(Duration::from_millis(10));
         }
-        
+
         // Verify we have 5 tokens
         assert_eq!(blacklist.size(), 5);
-        
+
         // Add another token, which should trigger cleanup of oldest
         let expiration = SystemTime::now() + Duration::from_secs(300);
         blacklist.revoke_token("new-token", expiration);
-        
+
         // We should still have max size tokens
         assert_eq!(blacklist.size(), 5);
-        
+
         // The oldest token should be gone
         assert!(!blacklist.is_revoked("token-0"));
-        
+
         // The new token should be there
         assert!(blacklist.is_revoked("new-token"));
     }
-} 
+}

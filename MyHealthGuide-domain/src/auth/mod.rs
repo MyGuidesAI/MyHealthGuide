@@ -118,29 +118,29 @@ pub async fn auth_middleware<S>(
         debug!("Auth bypass enabled in development mode");
         return next.run(req).await;
     }
-    
+
     // Get the request path for logging
     let request_path = req.uri().path().to_string();
-    
+
     // Start timing the authentication process
     let start_time = std::time::Instant::now();
-    
+
     // Extract the token from the Authorization header
     let auth_header = match req.headers().get(header::AUTHORIZATION) {
         Some(value) => match value.to_str() {
             Ok(auth_str) => auth_str,
             Err(_) => {
                 warn!("Invalid Authorization header format");
-                
+
                 // Log auth failure
                 let event = AuthEvent::new(AuthEventType::TokenValidation, None, false)
                     .with_details("Invalid Authorization header format")
                     .with_resource(request_path)
                     .with_duration(start_time.elapsed().as_millis() as u64)
                     .with_auth_method("jwt");
-                
+
                 log_auth_event(event);
-                
+
                 return Response::builder()
                     .status(StatusCode::UNAUTHORIZED)
                     .body(Body::empty())
@@ -149,49 +149,49 @@ pub async fn auth_middleware<S>(
         },
         None => {
             debug!("Missing Authorization header");
-            
+
             // Log missing auth header
             let event = AuthEvent::new(AuthEventType::TokenValidation, None, false)
                 .with_details("Missing Authorization header")
                 .with_resource(request_path)
                 .with_duration(start_time.elapsed().as_millis() as u64)
                 .with_auth_method("jwt");
-            
+
             log_auth_event(event);
-            
+
             return Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
                 .body(Body::empty())
                 .unwrap_or_default();
         }
     };
-    
+
     // Check if it's a Bearer token
     if !auth_header.starts_with("Bearer ") {
         warn!("Authorization header does not contain Bearer token");
-        
+
         // Log invalid token format
         let event = AuthEvent::new(AuthEventType::TokenValidation, None, false)
             .with_details("Authorization header does not contain Bearer token")
             .with_resource(request_path)
             .with_duration(start_time.elapsed().as_millis() as u64)
             .with_auth_method("jwt");
-        
+
         log_auth_event(event);
-        
+
         return Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body(Body::empty())
             .unwrap_or_default();
     }
-    
+
     let token = &auth_header[7..]; // Skip "Bearer " prefix
-    
+
     // First try our standard JWT validation
     match token::validate_token(token) {
         Ok(claims) => {
             debug!("Token validated successfully as internal JWT for user: {}", claims.sub);
-            
+
             // Log successful authentication
             let duration = start_time.elapsed().as_millis() as u64;
             let event = AuthEvent::new(AuthEventType::TokenValidation, Some(&claims.sub), true)
@@ -199,9 +199,9 @@ pub async fn auth_middleware<S>(
                 .with_resource(request_path)
                 .with_duration(duration)
                 .with_auth_method("jwt");
-            
+
             log_auth_event(event);
-            
+
             // Add user info to request extensions
             let user_info = UserInfo {
                 user_id: claims.sub.clone(),
@@ -211,31 +211,31 @@ pub async fn auth_middleware<S>(
                 picture: None,
                 auth_source: "jwt".to_string(),
             };
-            
+
             req.extensions_mut().insert(user_info);
             req.extensions_mut().insert(claims);
-            
+
             // Continue with the request
             next.run(req).await
         },
         Err(token::SecurityError::TokenExpired) => {
             warn!("Expired token");
-            
+
             // Try to extract user ID from expired token for logging
             let user_id = match token::validate_token(token) {
                 Ok(claims) => Some(claims.sub),
                 Err(_) => None,
             };
-            
+
             // Log token expired
             let event = AuthEvent::new(AuthEventType::TokenValidation, user_id.as_deref(), false)
                 .with_details("JWT token has expired")
                 .with_resource(request_path)
                 .with_duration(start_time.elapsed().as_millis() as u64)
                 .with_auth_method("jwt");
-            
+
             log_auth_event(event);
-            
+
             Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
                 .body(Body::empty())
@@ -243,22 +243,22 @@ pub async fn auth_middleware<S>(
         },
         Err(token::SecurityError::TokenRevoked) => {
             warn!("Revoked token");
-            
+
             // Try to extract user ID from revoked token for logging
             let user_id = match token::validate_token(token) {
                 Ok(claims) => Some(claims.sub),
                 Err(_) => None,
             };
-            
+
             // Log token revoked
             let event = AuthEvent::new(AuthEventType::TokenValidation, user_id.as_deref(), false)
                 .with_details("Token has been revoked")
                 .with_resource(request_path)
                 .with_duration(start_time.elapsed().as_millis() as u64)
                 .with_auth_method("jwt");
-            
+
             log_auth_event(event);
-            
+
             Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
                 .body(Body::empty())
@@ -266,12 +266,12 @@ pub async fn auth_middleware<S>(
         },
         Err(e) => {
             debug!("Standard JWT validation failed, trying Auth0 validation: {}", e);
-            
+
             // If internal JWT validation fails, try Auth0 validation
             match auth0::validate_auth0_token(token).await {
                 Ok(user_info) => {
                     debug!("Token validated successfully as Auth0 JWT for user: {}", user_info.user_id);
-                    
+
                     // Log successful Auth0 authentication
                     let duration = start_time.elapsed().as_millis() as u64;
                     let event = AuthEvent::new(AuthEventType::TokenValidation, Some(&user_info.user_id), true)
@@ -279,9 +279,9 @@ pub async fn auth_middleware<S>(
                         .with_resource(request_path)
                         .with_duration(duration)
                         .with_auth_method("auth0");
-                    
+
                     log_auth_event(event);
-                    
+
                     // Create internal claims for compatibility
                     let claims = Claims {
                         sub: user_info.user_id.clone(),
@@ -289,26 +289,26 @@ pub async fn auth_middleware<S>(
                         iat: Utc::now().timestamp(),
                         exp: Utc::now().timestamp() + 3600, // Just a placeholder, the real expiration is in the token
                     };
-                    
+
                     // Add user info to request extensions
                     req.extensions_mut().insert(user_info);
                     req.extensions_mut().insert(claims);
-                    
+
                     // Continue with the request
                     next.run(req).await
                 },
                 Err(auth0_err) => {
                     error!("Auth0 token validation error: {}", auth0_err);
-                    
+
                     // Log failed Auth0 validation
                     let event = AuthEvent::new(AuthEventType::TokenValidation, None, false)
                         .with_details(format!("Auth0 token validation error: {}", auth0_err))
                         .with_resource(request_path)
                         .with_duration(start_time.elapsed().as_millis() as u64)
                         .with_auth_method("auth0");
-                    
+
                     log_auth_event(event);
-                    
+
                     Response::builder()
                         .status(StatusCode::UNAUTHORIZED)
                         .body(Body::empty())
@@ -325,14 +325,14 @@ pub fn configure_auth(app: axum::Router) -> axum::Router {
     use tower_http::cors::{Any, CorsLayer};
     use tower_http::set_header::SetResponseHeaderLayer;
     use axum::http::header;
-    
+
     // Create CORS layer for authentication endpoints
     let auth_cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
         .max_age(std::time::Duration::from_secs(3600));
-    
+
     // Add security headers
     let security_headers = tower::ServiceBuilder::new()
         .layer(SetResponseHeaderLayer::if_not_present(
@@ -373,7 +373,7 @@ pub fn configure_auth(app: axum::Router) -> axum::Router {
             axum::http::HeaderName::from_static("cross-origin-embedder-policy"),
             header::HeaderValue::from_static("require-corp")
         ));
-    
+
     // Apply the security headers and CORS to the entire application
     app.layer(auth_cors).layer(security_headers)
 }
@@ -423,10 +423,10 @@ pub async fn refresh_token(
     headers: axum::http::HeaderMap,
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     use serde_json::json;
-    
+
     // Start timing the refresh operation
     let start_time = std::time::Instant::now();
-    
+
     // Extract refresh token from header
     let auth_header = match headers.get(header::AUTHORIZATION) {
         Some(value) => match value.to_str() {
@@ -437,9 +437,9 @@ pub async fn refresh_token(
                     .with_details("Invalid Authorization header format")
                     .with_duration(start_time.elapsed().as_millis() as u64)
                     .with_auth_method("refresh_token");
-                
+
                 log_auth_event(event);
-                
+
                 return Err((
                     StatusCode::UNAUTHORIZED,
                     axum::Json(json!({
@@ -455,9 +455,9 @@ pub async fn refresh_token(
                 .with_details("Missing Authorization header")
                 .with_duration(start_time.elapsed().as_millis() as u64)
                 .with_auth_method("refresh_token");
-            
+
             log_auth_event(event);
-            
+
             return Err((
                 StatusCode::UNAUTHORIZED,
                 axum::Json(json!({
@@ -467,7 +467,7 @@ pub async fn refresh_token(
             ));
         }
     };
-    
+
     // Check if it's a Bearer token
     if !auth_header.starts_with("Bearer ") {
         // Log invalid token format
@@ -475,9 +475,9 @@ pub async fn refresh_token(
             .with_details("Authorization header must start with Bearer")
             .with_duration(start_time.elapsed().as_millis() as u64)
             .with_auth_method("refresh_token");
-        
+
         log_auth_event(event);
-        
+
         return Err((
             StatusCode::UNAUTHORIZED,
             axum::Json(json!({
@@ -486,21 +486,21 @@ pub async fn refresh_token(
             }))
         ));
     }
-    
+
     let refresh_token = &auth_header[7..]; // Skip "Bearer " prefix
-    
+
     // Validate refresh token
     match token::validate_token(refresh_token) {
         Ok(claims) => {
             debug!("Refresh token valid for user: {}", claims.sub);
-            
+
             // Generate a new access token
             match token::generate_token(&claims.sub, token::TokenType::Access, None) {
                 Ok(new_token) => {
                     // Log successful token refresh
-                    let duration = start_time.elapsed().as_millis() as u64;
+                    let _duration = start_time.elapsed().as_millis() as u64;
                     log_token_refresh(&claims.sub, true, None);
-                    
+
                     Ok(axum::Json(json!({
                         "access_token": new_token,
                         "token_type": "Bearer",
@@ -510,11 +510,11 @@ pub async fn refresh_token(
                 },
                 Err(e) => {
                     error!("Failed to generate new access token: {}", e);
-                    
+
                     // Log token generation failure
-                    let duration = start_time.elapsed().as_millis() as u64;
+                    let _duration = start_time.elapsed().as_millis() as u64;
                     log_token_refresh(&claims.sub, false, Some(&format!("Failed to generate new token: {}", e)));
-                    
+
                     Err((
                         StatusCode::INTERNAL_SERVER_ERROR,
                         axum::Json(json!({
@@ -527,22 +527,22 @@ pub async fn refresh_token(
         },
         Err(e) => {
             warn!("Invalid refresh token: {}", e);
-            
+
             // Extract user ID from the token if possible for logging
             let user_id = match token::validate_token(refresh_token) {
                 Ok(claims) => claims.sub,
                 Err(_) => "unknown".to_string()
             };
-            
+
             // Log token validation failure
             let duration = start_time.elapsed().as_millis() as u64;
             let event = AuthEvent::new(AuthEventType::TokenRefresh, Some(&user_id), false)
                 .with_details(format!("Invalid or expired refresh token: {}", e))
                 .with_duration(duration)
                 .with_auth_method("refresh_token");
-            
+
             log_auth_event(event);
-            
+
             Err((
                 StatusCode::UNAUTHORIZED,
                 axum::Json(json!({
@@ -572,15 +572,15 @@ pub async fn logout(
     Extension(user_info): Extension<UserInfo>
 ) -> axum::Json<serde_json::Value> {
     use serde_json::json;
-    
+
     // Revoke the user's token
     if let Err(e) = token::revoke_token(&user_info.user_id) {
         error!("Failed to revoke token: {}", e);
     }
-    
+
     // Log logout event
     log_logout(&user_info.user_id);
-    
+
     axum::Json(json!({
         "message": "Logged out successfully",
         "status": "success"
@@ -604,57 +604,57 @@ pub async fn login(
     axum::Json(login_req): axum::Json<LoginRequest>
 ) -> Result<axum::Json<LoginResponse>, (StatusCode, axum::Json<serde_json::Value>)> {
     use serde_json::json;
-    
+
     // Start timing for login
     let start_time = std::time::Instant::now();
-    
+
     // For testing purposes, accept a hardcoded test user
     // In a real application, this would validate against a database
     if login_req.username == "testuser" && login_req.password == "testpassword" {
         // Generate a user ID (in a real app would come from the database)
         let user_id = "test-user-123".to_string();
-        
+
         // Generate tokens
         let access_token = match token::generate_token(&user_id, token::TokenType::Access, Some(vec!["user".to_string()])) {
             Ok(token) => token,
             Err(e) => {
                 error!("Failed to generate access token: {}", e);
-                
+
                 // Log token generation failure
                 let event = AuthEvent::new(AuthEventType::Login, Some(&user_id), false)
                     .with_details(format!("Failed to generate token: {}", e))
                     .with_duration(start_time.elapsed().as_millis() as u64)
                     .with_auth_method("password");
-                
+
                 log_auth_event(event);
-                
+
                 return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR, 
+                    StatusCode::INTERNAL_SERVER_ERROR,
                     axum::Json(json!({ "error": "Failed to generate token" }))
                 ));
             }
         };
-        
+
         let refresh_token = match token::generate_token(&user_id, token::TokenType::Refresh, Some(vec!["user".to_string()])) {
             Ok(token) => token,
             Err(e) => {
                 error!("Failed to generate refresh token: {}", e);
-                
+
                 // Log refresh token generation failure
                 let event = AuthEvent::new(AuthEventType::Login, Some(&user_id), false)
                     .with_details(format!("Failed to generate refresh token: {}", e))
                     .with_duration(start_time.elapsed().as_millis() as u64)
                     .with_auth_method("password");
-                
+
                 log_auth_event(event);
-                
+
                 return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR, 
+                    StatusCode::INTERNAL_SERVER_ERROR,
                     axum::Json(json!({ "error": "Failed to generate token" }))
                 ));
             }
         };
-        
+
         // Create user info
         let user_info = UserInfo {
             user_id: user_id.clone(),
@@ -664,7 +664,7 @@ pub async fn login(
             picture: None,
             auth_source: "password".to_string(),
         };
-        
+
         // Return tokens and user info
         let response = LoginResponse {
             access_token,
@@ -672,15 +672,15 @@ pub async fn login(
             token_type: "Bearer".to_string(),
             user: user_info,
         };
-        
+
         // Log successful login
         let event = AuthEvent::new(AuthEventType::Login, Some(&user_id), true)
             .with_details("Login successful")
             .with_duration(start_time.elapsed().as_millis() as u64)
             .with_auth_method("password");
-        
+
         log_auth_event(event);
-        
+
         Ok(axum::Json(response))
     } else {
         // Log failed login attempt
@@ -688,12 +688,12 @@ pub async fn login(
             .with_details("Invalid username or password")
             .with_duration(start_time.elapsed().as_millis() as u64)
             .with_auth_method("password");
-        
+
         log_auth_event(event);
-        
+
         // Invalid credentials
         Err((
-            StatusCode::UNAUTHORIZED, 
+            StatusCode::UNAUTHORIZED,
             axum::Json(json!({ "error": "Invalid username or password" }))
         ))
     }
@@ -702,7 +702,7 @@ pub async fn login(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_auth_middleware_exists() {
         // Simple test to verify the middleware function exists
@@ -710,4 +710,4 @@ mod tests {
         let _func = auth_middleware::<()>;
         assert!(true, "Function exists and can be referenced");
     }
-} 
+}

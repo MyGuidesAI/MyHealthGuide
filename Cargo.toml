@@ -58,4 +58,4 @@ debug = true
 
 [profile.release]
 opt-level = 3
-debug = false 
+debug = false
