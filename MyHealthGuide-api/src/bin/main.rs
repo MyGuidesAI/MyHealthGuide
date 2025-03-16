@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use dotenv::dotenv;
+use dotenv;
 use tokio::signal;
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -9,10 +9,10 @@ use tracing_subscriber::{
     prelude::*,
     EnvFilter,
 };
-use MyHealthGuide_api::api::create_application;
+use my_health_guide_api::api::create_application;
 
 /// Application error type for the main function
-/// 
+///
 /// This custom error type handles the specific errors that can occur
 /// during server initialization and running.
 #[derive(Debug)]
@@ -57,9 +57,31 @@ impl From<std::num::ParseIntError> for AppError {
 /// 6. Handles graceful shutdown
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load environment variables from .env file
-    if dotenv().is_err() {
-        eprintln!("Warning: .env file not found or couldn't be read. Using environment variables.");
+    // Try to load environment variables from several possible .env file locations
+    let env_paths = [
+        "./.env",                // Current directory
+        "/app/.env",             // Docker mount location
+        "../.env",               // Parent directory
+        "../../.env",            // Grandparent directory
+    ];
+
+    let mut env_loaded = false;
+    for path in env_paths.iter() {
+        if dotenv::from_path(path).is_ok() {
+            info!("Loaded environment from {}", path);
+            env_loaded = true;
+            break;
+        }
+    }
+
+    if !env_loaded {
+        info!("No .env file found. Using environment variables.");
+
+        // Set default JWT_SECRET if not already set
+        if std::env::var("JWT_SECRET").is_err() {
+            std::env::set_var("JWT_SECRET", "this is top secret");
+            info!("Set default JWT_SECRET");
+        }
     }
 
     // Initialize tracing for structured logging
@@ -81,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Define the database path - this is handled by the domain layer now
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string());
     let db_path = PathBuf::from(&data_dir).join("health_guide.db");
-    
+
     // Create the data directory if it doesn't exist
     if !PathBuf::from(&data_dir).exists() {
         info!("Creating data directory: {}", data_dir);
@@ -99,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Explicitly initialize the database connection pool
     // Use MyHealthGuide_domain to access MyHealthGuide_data functions
-    match MyHealthGuide_domain::database::initialize_database_pool() {
+    match my_health_guide_domain::database::initialize_database_pool() {
         Ok(_) => info!("Database pool initialized successfully"),
         Err(e) => {
             error!("Failed to initialize database pool: {}", e);
@@ -128,7 +150,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Initialize server start time for uptime reporting in health checks
-    MyHealthGuide_api::api::handlers::health::initialize_server_start_time();
+    my_health_guide_api::api::handlers::health::initialize_server_start_time();
 
     // Create the Axum application with all routes and middleware
     let app = create_application().await;
@@ -138,18 +160,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
         .expect("PORT must be a number");
-    
+
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("Listening on {}", addr);
 
     // Create a TCP listener and bind to the address
     let listener = TcpListener::bind(addr).await?;
-    
+
     // Serve the application with graceful shutdown support
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
-    
+
     info!("Server shutdown complete");
     Ok(())
 }
@@ -159,7 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// This function creates an async task that waits for either:
 /// - CTRL+C signal
 /// - SIGTERM (on Unix systems)
-/// 
+///
 /// When either signal is received, the function returns and triggers
 /// the graceful shutdown process.
 async fn shutdown_signal() {
@@ -186,4 +208,4 @@ async fn shutdown_signal() {
     }
 
     info!("Shutting down server...");
-} 
+}
