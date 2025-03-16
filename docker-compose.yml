@@ -7,11 +7,12 @@ services:
     image: myhealthguide:dev
     container_name: myhealthguide-dev
     ports:
-      - "3000:3000" 
+      - "3000:3000"
     volumes:
       - .:/app:delegated  # Source code for development
       - cargo-cache:/usr/local/cargo/registry  # Cache dependencies to speed up builds
       - MyHealthGuide-data:/app/data  # Only persist the database data
+      - ./.env:/app/.env  # Explicitly mount the .env file
     env_file:
       - .env
     restart: unless-stopped
@@ -34,6 +35,7 @@ services:
       - "3001:3000"  # Different port to avoid conflict with dev service
     volumes:
       - MyHealthGuide-data-prod:/app/data  # Only persist the database data
+      - ./.env:/app/.env  # Explicitly mount the .env file
     env_file:
       - .env
     restart: unless-stopped
@@ -51,4 +53,4 @@ volumes:
   MyHealthGuide-data-prod:
     name: myhealthguide-data-prod
   cargo-cache:
-    name: myhealthguide-cargo-cache 
+    name: myhealthguide-cargo-cache

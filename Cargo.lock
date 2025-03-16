@@ -3,98 +3,6 @@
 version = 3
 
 [[package]]
-name = "MyHealthGuide-api"
-version = "0.1.0"
-dependencies = [
- "MyHealthGuide-data",
- "MyHealthGuide-domain",
- "anyhow",
- "async-trait",
- "axum",
- "chrono",
- "dotenv",
- "futures",
- "indexmap 2.8.0",
- "mime",
- "once_cell",
- "reqwest",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 1.0.69",
- "tokio",
- "tokio-test",
- "tower 0.4.13",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
- "validator",
-]
-
-[[package]]
-name = "MyHealthGuide-data"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "deadpool-postgres",
- "mysql",
- "once_cell",
- "r2d2",
- "r2d2_mysql",
- "r2d2_sqlite",
- "rusqlite",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 1.0.69",
- "tokio",
- "tokio-postgres",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "MyHealthGuide-domain"
-version = "0.1.0"
-dependencies = [
- "MyHealthGuide-data",
- "anyhow",
- "async-trait",
- "axum",
- "base64 0.21.7",
- "chrono",
- "futures",
- "jsonwebtoken",
- "jwt-simple",
- "mockall",
- "oauth2",
- "once_cell",
- "openidconnect",
- "rand 0.8.5",
- "reqwest",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 1.0.69",
- "tokio",
- "tokio-test",
- "tower 0.4.13",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
- "urlencoding",
- "utoipa",
- "uuid",
- "validator",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2205,6 +2113,98 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "my_health_guide_api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "dotenv",
+ "futures",
+ "indexmap 2.8.0",
+ "mime",
+ "my_health_guide_data",
+ "my_health_guide_domain",
+ "once_cell",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tower 0.4.13",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "my_health_guide_data"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "deadpool-postgres",
+ "mysql",
+ "once_cell",
+ "r2d2",
+ "r2d2_mysql",
+ "r2d2_sqlite",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-postgres",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "my_health_guide_domain"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.21.7",
+ "chrono",
+ "futures",
+ "jsonwebtoken",
+ "jwt-simple",
+ "mockall",
+ "my_health_guide_data",
+ "oauth2",
+ "once_cell",
+ "openidconnect",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tower 0.4.13",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "urlencoding",
+ "utoipa",
+ "uuid",
+ "validator",
 ]
 
 [[package]]

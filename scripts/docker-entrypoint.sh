@@ -3,35 +3,25 @@ set -e
 
 echo "Starting MyHealthGuide API in development mode..."
 
-# Check if the Cargo.lock file exists and if it's the correct version
-if [ -f "/app/Cargo.lock" ]; then
+# Check if Cargo.lock exists and is compatible with the current Rust version
+if [ -f /app/Cargo.lock ]; then
     echo "Found existing Cargo.lock file. Checking compatibility..."
-    
-    # Check if Cargo can read the lock file
-    if ! cargo check --dry-run &> /dev/null; then
+    if ! cargo --version | grep -q "$(grep -A 1 '\[metadata\]' /app/Cargo.lock | grep -oP 'rustc \K[0-9]+\.[0-9]+\.[0-9]+')"; then
         echo "Cargo.lock is incompatible with the current Rust version. Regenerating..."
-        # Force to ignore the existing Cargo.lock by temporarily renaming it
-        mv /app/Cargo.lock /app/Cargo.lock.backup
-        
-        # Generate a new Cargo.lock
-        cargo generate-lockfile
-        
-        # Inform the user
+        mv /app/Cargo.lock /app/Cargo.lock.old
+        cargo update
         echo "Generated a new Cargo.lock file compatible with Rust $(rustc --version)"
-    else
-        echo "Cargo.lock is compatible."
     fi
 else
-    echo "No Cargo.lock found. Generating one..."
-    cargo generate-lockfile
+    echo "No Cargo.lock file found. Generating..."
+    cargo update
+    echo "Generated a new Cargo.lock file compatible with Rust $(rustc --version)"
 fi
 
-# Run the application
 echo "Starting application..."
-cargo run --bin MyHealthGuide-api
+# Run the application
+cargo run --bin my_health_guide_api
 
-# Keep container running if the command fails
-if [ $? -ne 0 ]; then
-    echo "Application crashed. Container will keep running for debugging."
-    tail -f /dev/null
-fi 
+# Keep the container running if the application crashes
+echo "Application crashed. Keeping container running for debugging..."
+tail -f /dev/null

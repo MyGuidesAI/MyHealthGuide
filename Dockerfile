@@ -52,8 +52,8 @@ RUN mkdir -p /app/data && \
     chmod 777 /app/data
 
 # Copy the built binary from the builder stage
-COPY --from=builder /app/target/release/MyHealthGuide-api /app/MyHealthGuide-api
-RUN chown appuser:appuser /app/MyHealthGuide-api && chmod +x /app/MyHealthGuide-api
+COPY --from=builder /app/target/release/my_health_guide_api /app/my_health_guide_api
+RUN chown appuser:appuser /app/my_health_guide_api && chmod +x /app/my_health_guide_api
 
 # Switch to non-root user
 USER appuser
@@ -69,4 +69,4 @@ ENV RUST_LOG=info \
 EXPOSE 3000
 
 # Run the application
-CMD ["/app/MyHealthGuide-api"] 
+CMD ["/app/my_health_guide_api"]

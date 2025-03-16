@@ -1,7 +1,7 @@
 //! Domain layer health check functionality
 //! This module provides health check services for the application
 
-use MyHealthGuide_data::database;
+use my_health_guide_data::database;
 use std::collections::HashMap;
 use async_trait::async_trait;
 
@@ -50,7 +50,7 @@ pub struct SystemHealth {
 pub trait HealthServiceTrait: Send + Sync + std::fmt::Debug {
     /// Get the overall system health
     async fn get_system_health(&self) -> SystemHealth;
-    
+
     /// Check the status of the database
     /// Returns true if the database is healthy, false if not
     /// Returns an error if the check could not be performed
@@ -58,7 +58,7 @@ pub trait HealthServiceTrait: Send + Sync + std::fmt::Debug {
 }
 
 /// Check if the database is available and functioning properly
-/// 
+///
 /// Returns:
 /// - Ok(true) if the database is fully operational
 /// - Ok(false) if the database has degraded functionality
@@ -86,7 +86,7 @@ pub async fn check_database_status() -> Result<bool, String> {
 /// Get overall system health
 pub async fn get_system_health() -> SystemHealth {
     let db_status = check_database_status().await;
-    
+
     let db_component = match db_status {
         Ok(true) => HealthComponent {
             status: ComponentStatus::Healthy,
@@ -101,7 +101,7 @@ pub async fn get_system_health() -> SystemHealth {
             details: Some(e),
         },
     };
-    
+
     let overall_status = if db_component.status == ComponentStatus::Unhealthy {
         SystemStatus::Unhealthy
     } else if db_component.status == ComponentStatus::Degraded {
@@ -109,7 +109,7 @@ pub async fn get_system_health() -> SystemHealth {
     } else {
         SystemStatus::Healthy
     };
-    
+
     SystemHealth {
         status: overall_status,
         components: vec![
@@ -121,7 +121,7 @@ pub async fn get_system_health() -> SystemHealth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_get_system_health() {
         let health = get_system_health().await;
@@ -129,4 +129,4 @@ mod tests {
         // Just check that components are present
         assert!(health.components.contains_key("database"));
     }
-} 
+}

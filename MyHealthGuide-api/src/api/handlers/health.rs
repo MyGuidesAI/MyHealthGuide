@@ -7,8 +7,8 @@ use std::sync::{Once, Arc};
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 // Use the trait from domain layer
-use MyHealthGuide_domain::health::{HealthServiceTrait, SystemStatus, ComponentStatus as DomainComponentStatus, HealthComponent as DomainHealthComponent, SystemHealth};
-use MyHealthGuide_domain::health;
+use my_health_guide_domain::health::{HealthServiceTrait, SystemStatus, ComponentStatus as DomainComponentStatus, HealthComponent as DomainHealthComponent, SystemHealth};
+use my_health_guide_domain::health;
 use async_trait::async_trait;
 
 /// Enhanced health check response model with more system information
@@ -82,26 +82,26 @@ pub async fn health_check(
     Extension(health_service): Extension<Arc<dyn HealthServiceTrait + Send + Sync>>,
 ) -> Result<impl IntoResponse, axum::response::Response> {
     info!("Health check requested");
-    
+
     // Get the current timestamp
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    
+
     // Calculate uptime if server start time is available
     let uptime = SERVER_START_TIME.get().map(|&start_time| now.saturating_sub(start_time));
-    
+
     // Get system health from the service
     let system_health = health_service.get_system_health().await;
-    
+
     // Map domain status to API status
     let overall_status = match system_health.status {
         SystemStatus::Healthy => "ok",
         SystemStatus::Degraded => "degraded",
         SystemStatus::Unhealthy => "error",
     };
-    
+
     // Map domain components to API component status
     let mut component_statuses = ComponentStatus {
         database: ComponentHealthStatus {
@@ -120,7 +120,7 @@ pub async fn health_check(
         },
         additional: None,
     };
-    
+
     // Add any additional components as a JSON object
     if system_health.components.len() > 2 {
         let additional_components: serde_json::Value = system_health.components.iter()
@@ -133,10 +133,10 @@ pub async fn health_check(
             })
             .collect::<serde_json::Map<String, serde_json::Value>>()
             .into();
-            
+
         component_statuses.additional = Some(additional_components);
     }
-    
+
     // Build the response
     let response = HealthResponse {
         status: overall_status.to_string(),
@@ -146,7 +146,7 @@ pub async fn health_check(
         components: component_statuses,
         environment: std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string()),
     };
-    
+
     // Return appropriate status code based on overall status
     match overall_status {
         "ok" => Ok((StatusCode::OK, Json(response))),
@@ -187,14 +187,14 @@ impl HealthService {
 impl HealthServiceTrait for HealthService {
     async fn get_system_health(&self) -> SystemHealth {
         let mut components = HashMap::new();
-        
+
         // Check database status
         let db_status = match self.check_database_status().await {
             Ok(true) => DomainComponentStatus::Healthy,
             Ok(false) => DomainComponentStatus::Degraded,
             Err(_) => DomainComponentStatus::Unhealthy,
         };
-        
+
         // Add database component
         components.insert(
             "database".to_string(),
@@ -207,7 +207,7 @@ impl HealthServiceTrait for HealthService {
                 },
             },
         );
-        
+
         // Add API component (always healthy in this implementation)
         components.insert(
             "api".to_string(),
@@ -216,7 +216,7 @@ impl HealthServiceTrait for HealthService {
                 details: None,
             },
         );
-        
+
         // Determine overall system status based on component statuses
         let system_status = if components.values().any(|c| c.status == DomainComponentStatus::Unhealthy) {
             SystemStatus::Unhealthy
@@ -225,13 +225,13 @@ impl HealthServiceTrait for HealthService {
         } else {
             SystemStatus::Healthy
         };
-        
+
         SystemHealth {
             status: system_status,
             components,
         }
     }
-    
+
     async fn check_database_status(&self) -> Result<bool, String> {
         // Replace database::check_database_health with health::check_database_status
         health::check_database_status().await
@@ -247,25 +247,25 @@ pub fn create_health_service() -> Arc<dyn HealthServiceTrait + Send + Sync> {
 mod tests {
     use super::*;
     use axum::http::StatusCode;
-    
+
     #[tokio::test]
     async fn test_health_check_response() {
         // Initialize start time
         initialize_server_start_time();
-        
+
         // Create a mock health service
         let health_service = Arc::new(create_mock_health_service()) as Arc<dyn HealthServiceTrait + Send + Sync>;
-        
+
         // Call health check with the mock service
         let response = health_check(Extension(health_service)).await.unwrap();
-        
+
         // Convert to response
         let response = response.into_response();
-        
+
         // Extract status code
         let status = response.status();
-        
+
         // Should be OK since we're using a mock service configured to be healthy
         assert_eq!(status, StatusCode::OK);
     }
-} 
+}

@@ -1,5 +1,5 @@
 [package]
-name = "MyHealthGuide-domain"
+name = "my_health_guide_domain"
 version = "0.1.0"
 edition = "2021"
 description = "Domain layer for MyHealthGuide API"
@@ -50,7 +50,7 @@ rand = { version = "0.8" }
 async-trait = { version = "0.1.77", optional = true }
 
 # Internal dependencies
-MyHealthGuide-data = { path = "../MyHealthGuide-data", optional = true, features = ["mock"] }
+my_health_guide_data = { path = "../MyHealthGuide-data", optional = true, features = ["mock"] }
 
 [dev-dependencies]
 mockall = "0.12.1"
@@ -58,7 +58,7 @@ tokio-test = "0.4.3"
 
 [features]
 default = ["with-data", "with-axum", "with-oidc", "with-api", "with-web", "with-validation", "with-tokio", "db-logging"]
-with-data = ["dep:MyHealthGuide-data"]
+with-data = ["dep:my_health_guide_data"]
 with-axum = ["dep:axum"]
 with-oidc = ["dep:openidconnect", "dep:reqwest", "dep:oauth2", "dep:url", "dep:urlencoding"]
 with-api = ["dep:utoipa"]
@@ -67,6 +67,6 @@ with-validation = ["dep:validator", "dep:async-trait"]
 with-tokio = []
 db-logging = []
 mock = []
-sqlite = ["MyHealthGuide-data?/sqlite"]
-mysql = ["MyHealthGuide-data?/mysql"]
-postgres = ["MyHealthGuide-data?/postgres"]
+sqlite = ["my_health_guide_data?/sqlite"]
+mysql = ["my_health_guide_data?/mysql"]
+postgres = ["my_health_guide_data?/postgres"]

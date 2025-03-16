@@ -1,5 +1,5 @@
 [package]
-name = "MyHealthGuide-data"
+name = "my_health_guide_data"
 version = "0.1.0"
 edition = "2021"
 
@@ -46,4 +46,4 @@ default = ["sqlite"]
 sqlite = ["r2d2_sqlite", "rusqlite"]
 postgres = ["tokio-postgres", "deadpool-postgres", "dep:tokio"]
 mysql_db = ["mysql", "r2d2_mysql"]
-mock = [] # Feature for testing with mock implementations 
+mock = [] # Feature for testing with mock implementations

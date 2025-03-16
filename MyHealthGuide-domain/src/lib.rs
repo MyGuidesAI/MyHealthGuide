@@ -14,7 +14,7 @@ pub mod entities;
 pub mod health;
 
 // Re-export the database module from myhealth-data for convenience
-pub use MyHealthGuide_data::database;
+pub use my_health_guide_data::database;
 
 // Testing utilities - only available with mock feature
 #[cfg(feature = "mock")]
@@ -25,4 +25,4 @@ pub mod testing;
     since = "0.2.0",
     note = "Use entities module instead. This will be removed in a future version."
 )]
-pub mod models; 
+pub mod models;

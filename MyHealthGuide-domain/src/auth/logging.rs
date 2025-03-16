@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
-use tracing::{info, debug, warn, error};
+use tracing::{info, debug, error};
 
 /// Types of authentication events
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

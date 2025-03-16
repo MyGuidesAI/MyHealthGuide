@@ -70,38 +70,38 @@ async fn login_handler(
 ) -> Response {
     // Debug sessions
     // client.debug_sessions();
-    
+
     // Log the auth flow initiation
     let start_time = std::time::Instant::now();
-    
+
     match client.start_auth_flow().await {
         Ok((auth_url, session)) => {
-            debug!("Generated auth URL. Session ID: {}, CSRF token: {}, Nonce: {}", 
+            debug!("Generated auth URL. Session ID: {}, CSRF token: {}, Nonce: {}",
                    session.id, session.csrf_token, session.nonce);
-            
+
             // Log successful auth flow start
             let duration = start_time.elapsed().as_millis() as u64;
             let event = AuthEvent::new(AuthEventType::Login, None, true)
                 .with_details(format!("Started OIDC auth flow with session ID: {}", session.id))
                 .with_duration(duration)
                 .with_auth_method("oidc");
-            
+
             log_auth_event(event);
-            
+
             (StatusCode::OK, Json(OidcLoginResponse { auth_url })).into_response()
         }
         Err(e) => {
             error!("Failed to generate OIDC login URL: {:?}", e);
-            
+
             // Log failed auth flow start
             let duration = start_time.elapsed().as_millis() as u64;
             let event = AuthEvent::new(AuthEventType::Login, None, false)
                 .with_details(format!("Failed to start OIDC auth flow: {}", e))
                 .with_duration(duration)
                 .with_auth_method("oidc");
-            
+
             log_auth_event(event);
-            
+
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(OidcErrorResponse { error: format!("Failed to generate login URL: {}", e) }),
@@ -118,39 +118,39 @@ async fn callback_handler(
 ) -> Response {
     // Debug sessions
     // client.debug_sessions();
-    
+
     debug!("Received OIDC callback with params: {:?}", params);
-    
+
     // Start timing for the callback process
     let start_time = std::time::Instant::now();
-    
+
     // Log the callback event
     let callback_event = AuthEvent::new(AuthEventType::OidcCallback, None, true)
-        .with_details(format!("Received OIDC callback with state: {}", 
+        .with_details(format!("Received OIDC callback with state: {}",
                              params.get("state").unwrap_or(&"none".to_string())));
-    
+
     log_auth_event(callback_event);
-    
+
     // Check for error parameters
     if let Some(error) = params.get("error") {
         let error_description = params.get("error_description")
             .map(|desc| format!("{}: {}", error, desc))
             .unwrap_or_else(|| error.clone());
-        
+
         // Log the error
         let event = AuthEvent::new(AuthEventType::FailedLogin, None, false)
             .with_details(format!("OIDC error: {}", error_description))
             .with_duration(start_time.elapsed().as_millis() as u64)
             .with_auth_method("oidc");
-        
+
         log_auth_event(event);
-        
+
         return (
             StatusCode::BAD_REQUEST,
             Json(OidcErrorResponse { error: error_description }),
         ).into_response();
     }
-    
+
     // Get required parameters
     let code = match params.get("code") {
         Some(code) => code,
@@ -160,16 +160,16 @@ async fn callback_handler(
                 .with_details("Missing 'code' parameter in OIDC callback")
                 .with_duration(start_time.elapsed().as_millis() as u64)
                 .with_auth_method("oidc");
-            
+
             log_auth_event(event);
-            
+
             return (
                 StatusCode::BAD_REQUEST,
                 Json(OidcErrorResponse { error: "Missing 'code' parameter".to_string() }),
             ).into_response();
         }
     };
-    
+
     let state = match params.get("state") {
         Some(state) => state,
         None => {
@@ -178,70 +178,70 @@ async fn callback_handler(
                 .with_details("Missing 'state' parameter in OIDC callback")
                 .with_duration(start_time.elapsed().as_millis() as u64)
                 .with_auth_method("oidc");
-            
+
             log_auth_event(event);
-            
+
             return (
-                StatusCode::BAD_REQUEST, 
+                StatusCode::BAD_REQUEST,
                 Json(OidcErrorResponse { error: "Missing 'state' parameter".to_string() }),
             ).into_response();
         }
     };
-    
+
     // Handle the callback
     match client.handle_callback(code, state).await {
         Ok(user_info) => {
             // Generate tokens
             let access_token = match token::generate_token(
-                &user_info.user_id, 
-                token::TokenType::Access, 
+                &user_info.user_id,
+                token::TokenType::Access,
                 Some(user_info.roles.clone())
             ) {
                 Ok(token) => token,
                 Err(e) => {
                     error!("Failed to generate access token: {}", e);
-                    
+
                     // Log token generation failure
                     let duration = start_time.elapsed().as_millis() as u64;
                     let event = AuthEvent::new(AuthEventType::FailedLogin, Some(&user_info.user_id), false)
                         .with_details(format!("Failed to generate token: {}", e))
                         .with_duration(duration)
                         .with_auth_method("oidc");
-                    
+
                     log_auth_event(event);
-                    
+
                     return (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(OidcErrorResponse { error: "Failed to generate access token".to_string() }),
                     ).into_response();
                 }
             };
-            
+
             let refresh_token = match token::generate_token(
-                &user_info.user_id, 
-                token::TokenType::Refresh, 
+                &user_info.user_id,
+                token::TokenType::Refresh,
                 Some(user_info.roles.clone())
             ) {
                 Ok(token) => token,
                 Err(e) => {
                     error!("Failed to generate refresh token: {}", e);
-                    
+
                     // Log refresh token generation failure
                     let duration = start_time.elapsed().as_millis() as u64;
                     let event = AuthEvent::new(AuthEventType::FailedLogin, Some(&user_info.user_id), false)
                         .with_details(format!("Failed to generate refresh token: {}", e))
                         .with_duration(duration)
                         .with_auth_method("oidc");
-                    
+
                     log_auth_event(event);
-                    
+
                     return (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(OidcErrorResponse { error: "Failed to generate refresh token".to_string() }),
                     ).into_response();
                 }
             };
-            
+
             // Create login response with tokens and user info
             let response = LoginResponse {
                 access_token,
@@ -249,31 +249,31 @@ async fn callback_handler(
                 token_type: "Bearer".to_string(),
                 user: user_info.clone(),
             };
-            
+
             // Log successful login
             let duration = start_time.elapsed().as_millis() as u64;
             let event = AuthEvent::new(AuthEventType::Login, Some(&user_info.user_id), true)
                 .with_details("User successfully authenticated via OIDC".to_string())
                 .with_duration(duration)
                 .with_auth_method("oidc");
-            
+
             log_auth_event(event);
-            
+
             debug!("Generated tokens for OIDC user: {}", user_info.user_id);
             (StatusCode::OK, Json(response)).into_response()
         }
         Err(e) => {
             error!("OIDC callback error: {:?}", e);
-            
+
             // Log failed login
             let duration = start_time.elapsed().as_millis() as u64;
             let event = AuthEvent::new(AuthEventType::FailedLogin, None, false)
                 .with_details(format!("OIDC callback error: {}", e))
                 .with_duration(duration)
                 .with_auth_method("oidc");
-            
+
             log_auth_event(event);
-            
+
             (
                 StatusCode::BAD_REQUEST,
                 Json(OidcErrorResponse { error: format!("Authentication failed: {}", e) }),
@@ -294,7 +294,7 @@ async fn test_handler() -> impl IntoResponse {
         picture: Some("https://example.com/avatar.png".to_string()),
         auth_source: "oidc".to_string(),
     };
-    
+
     (StatusCode::OK, Json(user_info))
 }
 
@@ -305,4 +305,4 @@ async fn test_handler() -> impl IntoResponse {
         StatusCode::NOT_FOUND,
         Json(OidcErrorResponse { error: "Test endpoint only available in test environment".to_string() }),
     )
-} 
+}

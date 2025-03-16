@@ -1,5 +1,5 @@
 [package]
-name = "MyHealthGuide-api"
+name = "my_health_guide_api"
 version = "0.1.0"
 edition = "2021"
 authors = ["MyHealthGuide Team <dev@myhealth.org>"]
@@ -37,8 +37,8 @@ once_cell = "1.19"
 async-trait = "0.1.77"
 
 # Internal dependencies
-MyHealthGuide-domain = { path = "../MyHealthGuide-domain", features = ["mock"] }
-MyHealthGuide-data = { path = "../MyHealthGuide-data" }
+my_health_guide_domain = { path = "../MyHealthGuide-domain", features = ["mock"] }
+my_health_guide_data = { path = "../MyHealthGuide-data" }
 
 [dev-dependencies]
 reqwest = { version = "0.11.22", features = ["json"] }
@@ -48,11 +48,11 @@ mime = "0.3.17"
 
 [features]
 default = ["sqlite"]
-sqlite = ["MyHealthGuide-domain/sqlite"]
-mysql = ["MyHealthGuide-domain/mysql"]
-postgres = ["MyHealthGuide-domain/postgres"]
-mock = ["MyHealthGuide-domain/mock"]
+sqlite = ["my_health_guide_domain/sqlite"]
+mysql = ["my_health_guide_domain/mysql"]
+postgres = ["my_health_guide_domain/postgres"]
+mock = ["my_health_guide_domain/mock"]
 
 [[bin]]
-name = "MyHealthGuide-api"
-path = "src/bin/main.rs" 
+name = "my_health_guide_api"
+path = "src/bin/main.rs"

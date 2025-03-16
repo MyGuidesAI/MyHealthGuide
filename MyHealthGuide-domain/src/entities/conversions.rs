@@ -8,13 +8,13 @@ use uuid::Uuid;
 /// as specified in the architectural rules
 
 /// Helper function to safely parse a string ID to UUID
-/// 
+///
 /// This centralizes UUID parsing logic to ensure consistent handling across the application.
 /// When an invalid UUID is provided, it returns a descriptive error message.
-/// 
+///
 /// # Arguments
 /// * `id` - The string ID to parse into a UUID
-/// 
+///
 /// # Returns
 /// * `Result<Uuid, String>` - The parsed UUID or an error message
 pub fn parse_string_to_uuid(id: &str) -> Result<Uuid, String> {
@@ -22,8 +22,8 @@ pub fn parse_string_to_uuid(id: &str) -> Result<Uuid, String> {
 }
 
 /// Convert from data model to domain entity for blood pressure reading
-pub fn convert_to_domain_reading(data_reading: MyHealthGuide_data::models::blood_pressure::BloodPressureReading) 
-    -> BloodPressureReading 
+pub fn convert_to_domain_reading(data_reading: my_health_guide_data::models::blood_pressure::BloodPressureReading)
+    -> BloodPressureReading
 {
     BloodPressureReading {
         id: data_reading.id,
@@ -39,10 +39,10 @@ pub fn convert_to_domain_reading(data_reading: MyHealthGuide_data::models::blood
 }
 
 /// Convert from domain entity to data model for create request
-pub fn convert_to_data_create_request(domain_request: &CreateBloodPressureRequest) 
-    -> MyHealthGuide_data::models::blood_pressure::CreateBloodPressureRequest 
+pub fn convert_to_data_create_request(domain_request: &CreateBloodPressureRequest)
+    -> my_health_guide_data::models::blood_pressure::CreateBloodPressureRequest
 {
-    MyHealthGuide_data::models::blood_pressure::CreateBloodPressureRequest {
+    my_health_guide_data::models::blood_pressure::CreateBloodPressureRequest {
         systolic: domain_request.systolic,
         diastolic: domain_request.diastolic,
         pulse: domain_request.pulse,
@@ -55,10 +55,10 @@ pub fn convert_to_data_create_request(domain_request: &CreateBloodPressureReques
 }
 
 /// Convert from domain entity to data model for blood pressure insights
-pub fn convert_to_data_insights(domain_insights: &BloodPressureInsights) 
-    -> MyHealthGuide_data::models::blood_pressure::BloodPressureInsights 
+pub fn convert_to_data_insights(domain_insights: &BloodPressureInsights)
+    -> my_health_guide_data::models::blood_pressure::BloodPressureInsights
 {
-    MyHealthGuide_data::models::blood_pressure::BloodPressureInsights {
+    my_health_guide_data::models::blood_pressure::BloodPressureInsights {
         avg_systolic: domain_insights.avg_systolic,
         avg_diastolic: domain_insights.avg_diastolic,
         avg_pulse: domain_insights.avg_pulse,
@@ -74,8 +74,8 @@ pub fn convert_to_data_insights(domain_insights: &BloodPressureInsights)
 }
 
 /// Convert from data model to domain entity for blood pressure insights
-pub fn convert_to_domain_insights(data_insights: MyHealthGuide_data::models::blood_pressure::BloodPressureInsights) 
-    -> Result<BloodPressureInsights, &'static str> 
+pub fn convert_to_domain_insights(data_insights: my_health_guide_data::models::blood_pressure::BloodPressureInsights)
+    -> Result<BloodPressureInsights, &'static str>
 {
     // Parse the category string to get the domain category enum
     let category = match data_insights.category.as_str() {
@@ -86,7 +86,7 @@ pub fn convert_to_domain_insights(data_insights: MyHealthGuide_data::models::blo
         "Hypertensive Crisis" => BloodPressureCategory::HypertensiveCrisis,
         _ => return Err("Invalid blood pressure category string"),
     };
-    
+
     Ok(BloodPressureInsights {
         avg_systolic: data_insights.avg_systolic,
         avg_diastolic: data_insights.avg_diastolic,
@@ -106,11 +106,11 @@ pub fn convert_to_domain_insights(data_insights: MyHealthGuide_data::models::blo
 mod tests {
     use super::*;
     use chrono::Utc;
-    
+
     #[test]
     fn test_convert_to_domain_reading() {
         // Create a data model
-        let data_reading = MyHealthGuide_data::models::blood_pressure::BloodPressureReading {
+        let data_reading = my_health_guide_data::models::blood_pressure::BloodPressureReading {
             id: "123e4567-e89b-12d3-a456-426614174000".to_string(),
             systolic: 120,
             diastolic: 80,
@@ -121,10 +121,10 @@ mod tests {
             arm: Some("Left".to_string()),
             device_id: Some("Device123".to_string()),
         };
-        
+
         // Convert to domain entity
         let domain_reading = convert_to_domain_reading(data_reading.clone());
-        
+
         // Verify conversion
         assert_eq!(domain_reading.id, data_reading.id);
         assert_eq!(domain_reading.systolic, data_reading.systolic);
@@ -136,7 +136,7 @@ mod tests {
         assert_eq!(domain_reading.arm, data_reading.arm);
         assert_eq!(domain_reading.device_id, data_reading.device_id);
     }
-    
+
     #[test]
     fn test_convert_to_data_create_request() {
         // Create a domain entity
@@ -150,10 +150,10 @@ mod tests {
             arm: Some("Left".to_string()),
             device_id: Some("Device123".to_string()),
         };
-        
+
         // Convert to data model
         let data_request = convert_to_data_create_request(&domain_request);
-        
+
         // Verify conversion
         assert_eq!(data_request.systolic, domain_request.systolic);
         assert_eq!(data_request.diastolic, domain_request.diastolic);
@@ -164,4 +164,4 @@ mod tests {
         assert_eq!(data_request.arm, domain_request.arm);
         assert_eq!(data_request.device_id, domain_request.device_id);
     }
-} 
+}

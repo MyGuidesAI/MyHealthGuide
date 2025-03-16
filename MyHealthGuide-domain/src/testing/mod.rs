@@ -2,7 +2,7 @@
 // This module is only available when the "mock" feature is enabled
 
 // Re-export useful test mocks from the data layer
-pub use MyHealthGuide_data::repository::tests::MockBloodPressureRepository;
+pub use my_health_guide_data::repository::tests::MockBloodPressureRepository;
 
 use crate::entities::blood_pressure::{BloodPressureReading, CreateBloodPressureRequest, BloodPressureInsights, BloodPressureCategory};
 use crate::services::blood_pressure::{BloodPressureServiceTrait, BloodPressureServiceError};
@@ -33,19 +33,19 @@ impl MockBloodPressureService {
             should_fail_creation: false,
         }
     }
-    
+
     /// Configure the mock to fail validation
     pub fn with_validation_failure(mut self) -> Self {
         self.should_fail_validation = true;
         self
     }
-    
+
     /// Configure the mock to fail creation
     pub fn with_creation_failure(mut self) -> Self {
         self.should_fail_creation = true;
         self
     }
-    
+
     /// Add a pre-defined reading to the mock
     pub fn with_reading(self, reading: BloodPressureReading) -> Self {
         {
@@ -54,7 +54,7 @@ impl MockBloodPressureService {
         }
         self
     }
-    
+
     /// Add multiple pre-defined readings to the mock
     pub fn with_readings(self, readings: Vec<BloodPressureReading>) -> Self {
         {
@@ -81,7 +81,7 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
             Ok(())
         }
     }
-    
+
     fn calculate_insights(
         &self,
         readings: &[BloodPressureReading],
@@ -92,7 +92,7 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
                 "No readings available to calculate insights".to_string(),
             ));
         }
-        
+
         // Generate mock insights
         Ok(BloodPressureInsights {
             avg_systolic: 120.0,
@@ -108,7 +108,7 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
             generated_at: chrono::Utc::now(),
         })
     }
-    
+
     fn get_severity(&self, reading: &BloodPressureReading) -> crate::entities::blood_pressure::BloodPressureCategory {
         if reading.systolic >= 180 || reading.diastolic >= 120 {
             BloodPressureCategory::HypertensiveCrisis
@@ -122,23 +122,23 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
             BloodPressureCategory::Normal
         }
     }
-    
+
     fn is_hypertensive_crisis(&self, reading: &BloodPressureReading) -> bool {
         reading.systolic >= 180 || reading.diastolic >= 120
     }
-    
-    async fn create_reading(&self, request: CreateBloodPressureRequest) 
-        -> Result<BloodPressureReading, BloodPressureServiceError> 
+
+    async fn create_reading(&self, request: CreateBloodPressureRequest)
+        -> Result<BloodPressureReading, BloodPressureServiceError>
     {
         // First validate the request
         self.validate_create_request(&request)?;
-        
+
         if self.should_fail_creation {
             return Err(BloodPressureServiceError::RepositoryError(
                 "Repository error - mock is configured to fail creation".to_string(),
             ));
         }
-        
+
         // Generate a new reading
         let id = uuid::Uuid::new_v4().to_string();
         let reading = BloodPressureReading {
@@ -152,24 +152,24 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
             arm: request.arm,
             device_id: request.device_id,
         };
-        
+
         // Store the reading
         let mut readings = self.readings.write().unwrap();
         let id = reading.id.clone();
         readings.insert(id, reading.clone());
-        
+
         Ok(reading)
     }
-    
+
     async fn get_all_readings(&self) -> Result<Vec<BloodPressureReading>, BloodPressureServiceError> {
         let readings = self.readings.read().unwrap();
         let readings_vec: Vec<BloodPressureReading> = readings.values().cloned().collect();
         Ok(readings_vec)
     }
-    
+
     async fn get_reading_by_id(&self, id: &str) -> Result<BloodPressureReading, BloodPressureServiceError> {
         let readings = self.readings.read().unwrap();
-        
+
         match readings.get(id) {
             Some(reading) => Ok(reading.clone()),
             None => Err(BloodPressureServiceError::NotFound(
@@ -177,7 +177,7 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
             )),
         }
     }
-    
+
     async fn get_filtered_readings(
         &self,
         start_date: Option<String>,
@@ -188,16 +188,16 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
     ) -> Result<(Vec<BloodPressureReading>, usize), BloodPressureServiceError> {
         let readings = self.readings.read().unwrap();
         let mut readings_vec: Vec<BloodPressureReading> = readings.values().cloned().collect();
-        
+
         // Filter by date range if provided
         if let Some(start) = &start_date {
             readings_vec.retain(|r| r.timestamp >= *start);
         }
-        
+
         if let Some(end) = &end_date {
             readings_vec.retain(|r| r.timestamp <= *end);
         }
-        
+
         // Sort by timestamp
         readings_vec.sort_by(|a, b| {
             if sort_desc.unwrap_or(false) {
@@ -206,10 +206,10 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
                 a.timestamp.cmp(&b.timestamp)
             }
         });
-        
+
         // Get total count before pagination
         let total_count = readings_vec.len();
-        
+
         // Apply pagination if provided
         if let Some(offset_val) = offset {
             if offset_val < readings_vec.len() {
@@ -218,11 +218,11 @@ impl BloodPressureServiceTrait for MockBloodPressureService {
                 readings_vec = Vec::new();
             }
         }
-        
+
         if let Some(limit_val) = limit {
             readings_vec.truncate(limit_val);
         }
-        
+
         Ok((readings_vec, total_count))
     }
 }
@@ -253,32 +253,32 @@ impl MockHealthService {
             components: HashMap::new(),
         }
     }
-    
+
     /// Configure the mock with a degraded database
     pub fn with_degraded_database(mut self) -> Self {
         self.database_status = ComponentStatus::Degraded;
         self
     }
-    
+
     /// Configure the mock with an unhealthy database
     pub fn with_unhealthy_database(mut self) -> Self {
         self.database_status = ComponentStatus::Unhealthy;
         self
     }
-    
+
     /// Set the overall system status
     pub fn with_system_status(mut self, status: SystemStatus) -> Self {
         self.system_status = status;
         self
     }
-    
+
     /// Add a custom component with a specific status
     pub fn with_component(mut self, name: &str, status: ComponentStatus, details: Option<String>) -> Self {
         self.components.insert(
-            name.to_string(), 
-            HealthComponent { 
-                status, 
-                details 
+            name.to_string(),
+            HealthComponent {
+                status,
+                details
             }
         );
         self
@@ -290,7 +290,7 @@ impl HealthServiceTrait for MockHealthService {
     /// Get the system health
     async fn get_system_health(&self) -> SystemHealth {
         let mut components = HashMap::new();
-        
+
         // Add database component
         components.insert(
             "database".to_string(),
@@ -303,7 +303,7 @@ impl HealthServiceTrait for MockHealthService {
                 },
             },
         );
-        
+
         // Add API component
         components.insert(
             "api".to_string(),
@@ -312,18 +312,18 @@ impl HealthServiceTrait for MockHealthService {
                 details: None,
             },
         );
-        
+
         // Add any additional components
         for (name, component) in &self.components {
             components.insert(name.clone(), component.clone());
         }
-        
+
         SystemHealth {
             status: self.system_status.clone(),
             components,
         }
     }
-    
+
     /// Check database status
     async fn check_database_status(&self) -> Result<bool, String> {
         match self.database_status {
@@ -342,4 +342,4 @@ pub fn create_mock_blood_pressure_service() -> impl BloodPressureServiceTrait {
 /// Factory function to create a mock health service
 pub fn create_mock_health_service() -> impl HealthServiceTrait {
     MockHealthService::new()
-} 
+}

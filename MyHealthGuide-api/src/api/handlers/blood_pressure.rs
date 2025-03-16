@@ -11,8 +11,8 @@ use uuid::Uuid;
 use utoipa::{IntoParams, ToSchema};
 
 // Import domain entities and services
-use MyHealthGuide_domain::services::{BloodPressureServiceTrait, create_default_blood_pressure_service};
-use MyHealthGuide_domain::entities::blood_pressure::BloodPressureReading as DomainBloodPressureReading;
+use my_health_guide_domain::services::{BloodPressureServiceTrait, create_default_blood_pressure_service};
+use my_health_guide_domain::entities::blood_pressure::BloodPressureReading as DomainBloodPressureReading;
 
 // Import our entities
 use crate::entities::blood_pressure::{BloodPressureReading, CreateBloodPressureRequest};
@@ -22,16 +22,16 @@ use crate::entities::blood_pressure::{BloodPressureReading, CreateBloodPressureR
 pub struct HistoryQueryParams {
     /// ISO 8601 start date (default: 30 days ago)
     pub start_date: Option<String>,
-    
+
     /// ISO 8601 end date (default: current date)
     pub end_date: Option<String>,
-    
+
     /// Maximum number of results (default: 100, max: 1000)
     pub limit: Option<usize>,
-    
+
     /// Pagination offset (default: 0)
     pub offset: Option<usize>,
-    
+
     /// Sort direction (asc/desc, default: desc)
     pub sort: Option<String>,
 }
@@ -49,21 +49,21 @@ pub struct InsightsQueryParams {
 pub struct PaginatedResponse<T> {
     /// Total count of items available
     pub total_count: usize,
-    
+
     /// Current offset
     pub offset: usize,
-    
+
     /// Current limit
     pub limit: usize,
-    
+
     /// URL for the next page (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next: Option<String>,
-    
+
     /// URL for the previous page (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub previous: Option<String>,
-    
+
     /// Actual data items
     pub data: Vec<T>,
 }
@@ -73,10 +73,10 @@ pub struct PaginatedResponse<T> {
 pub struct ErrorResponse {
     /// Error type/code - machine-readable identifier
     pub error: String,
-    
+
     /// Human-readable error message
     pub message: String,
-    
+
     /// Optional additional details about the error
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
@@ -91,7 +91,7 @@ impl ErrorResponse {
             details: None,
         }
     }
-    
+
     /// Create a validation error response
     pub fn validation_error(message: &str, details: Option<serde_json::Value>) -> Self {
         Self {
@@ -100,7 +100,7 @@ impl ErrorResponse {
             details,
         }
     }
-    
+
     /// Create a bad request error response
     pub fn bad_request(message: &str) -> Self {
         Self {
@@ -109,7 +109,7 @@ impl ErrorResponse {
             details: None,
         }
     }
-    
+
     /// Create an internal error response
     pub fn internal_error() -> Self {
         Self {
@@ -128,7 +128,7 @@ impl IntoResponse for ErrorResponse {
             "bad_request" => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
-        
+
         (status, Json(self)).into_response()
     }
 }
@@ -164,7 +164,7 @@ pub async fn get_blood_pressure(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, Response> {
     info!("Fetching blood pressure reading with ID: {}", id);
-    
+
     // Call domain service
     match service.get_reading_by_id(&id.to_string()).await {
         Ok(reading) => {
@@ -206,10 +206,10 @@ pub async fn create_blood_pressure(
     Json(request): Json<CreateBloodPressureRequest>,
 ) -> Result<impl IntoResponse, Response> {
     info!("Creating new blood pressure reading");
-    
+
     // Convert public request to domain request
     let domain_request = convert_to_domain_request(request);
-    
+
     // Call domain service
     match service.create_reading(domain_request).await {
         Ok(reading) => {
@@ -241,89 +241,89 @@ fn generate_pagination_links(
 ) -> (Option<String>, Option<String>) {
     let has_next = offset + limit < total_count;
     let has_prev = offset > 0;
-    
+
     // Build query string
     let mut next_params = query_params.clone();
     let mut prev_params = query_params.clone();
-    
+
     // For next link
     let next = if has_next {
         next_params.offset = Some(offset + limit);
         next_params.limit = Some(limit);
-        
+
         let mut query_parts = Vec::new();
-        
+
         if let Some(start) = &next_params.start_date {
             query_parts.push(format!("start_date={}", start));
         }
-        
+
         if let Some(end) = &next_params.end_date {
             query_parts.push(format!("end_date={}", end));
         }
-        
+
         if let Some(limit) = next_params.limit {
             query_parts.push(format!("limit={}", limit));
         }
-        
+
         if let Some(offset) = next_params.offset {
             query_parts.push(format!("offset={}", offset));
         }
-        
+
         if let Some(sort) = &next_params.sort {
             query_parts.push(format!("sort={}", sort));
         }
-        
+
         let query_string = if query_parts.is_empty() {
             String::new()
         } else {
             format!("?{}", query_parts.join("&"))
         };
-        
+
         Some(format!("{}{}", base_url, query_string))
     } else {
         None
     };
-    
+
     // For previous link
     let previous = if has_prev {
         let new_offset = offset.saturating_sub(limit);
-        
+
         prev_params.offset = Some(new_offset);
         prev_params.limit = Some(limit);
-        
+
         let mut query_parts = Vec::new();
-        
+
         if let Some(start) = &prev_params.start_date {
             query_parts.push(format!("start_date={}", start));
         }
-        
+
         if let Some(end) = &prev_params.end_date {
             query_parts.push(format!("end_date={}", end));
         }
-        
+
         if let Some(limit) = prev_params.limit {
             query_parts.push(format!("limit={}", limit));
         }
-        
+
         if let Some(offset) = prev_params.offset {
             query_parts.push(format!("offset={}", offset));
         }
-        
+
         if let Some(sort) = &prev_params.sort {
             query_parts.push(format!("sort={}", sort));
         }
-        
+
         let query_string = if query_parts.is_empty() {
             String::new()
         } else {
             format!("?{}", query_parts.join("&"))
         };
-        
+
         Some(format!("{}{}", base_url, query_string))
     } else {
         None
     };
-    
+
     (next, previous)
 }
 
@@ -351,17 +351,17 @@ pub async fn get_blood_pressure_history(
     // Process query parameters
     let limit = params.limit.unwrap_or(100).min(1000); // Cap at 1000
     let offset = params.offset.unwrap_or(0);
-    
+
     // Default to sorting by most recent if not specified
     let sort_desc = match params.sort.as_deref() {
         Some("asc") => false,
         _ => true, // Default to descending (newest first)
     };
-    
+
     // Parse date range
     let now = Utc::now();
     let thirty_days_ago = now - chrono::Duration::days(30);
-    
+
     let start_date = if let Some(ref date_str) = params.start_date {
         match chrono::DateTime::parse_from_rfc3339(date_str) {
             Ok(date) => date.with_timezone(&Utc),
@@ -373,7 +373,7 @@ pub async fn get_blood_pressure_history(
     } else {
         thirty_days_ago
     };
-    
+
     let end_date = if let Some(ref date_str) = params.end_date {
         match chrono::DateTime::parse_from_rfc3339(date_str) {
             Ok(date) => date.with_timezone(&Utc),
@@ -385,17 +385,17 @@ pub async fn get_blood_pressure_history(
     } else {
         now
     };
-    
+
     // Convert dates to strings for filtering
     let start_date_str = Some(start_date.to_rfc3339());
     let end_date_str = Some(end_date.to_rfc3339());
-    
+
     // Call domain service
     match service.get_filtered_readings(start_date_str, end_date_str, Some(limit), Some(offset), Some(sort_desc)).await {
         Ok((domain_readings, total_count)) => {
             // Base URL for pagination links
             let base_url = "/api/v1/bloodpressure";
-            
+
             // Generate pagination links
             let (next, previous) = generate_pagination_links(
                 total_count,
@@ -404,12 +404,12 @@ pub async fn get_blood_pressure_history(
                 base_url,
                 &params,
             );
-            
+
             // Convert the domain readings to public readings
             let public_readings = domain_readings.into_iter()
                 .map(convert_to_public_reading)
                 .collect();
-            
+
             // Create paginated response
             let response = PaginatedResponse {
                 total_count,
@@ -419,7 +419,7 @@ pub async fn get_blood_pressure_history(
                 previous,
                 data: public_readings,
             };
-            
+
             Ok((StatusCode::OK, Json(response)))
         },
         Err(e) => {
@@ -450,15 +450,15 @@ pub async fn get_blood_pressure_insights(
 ) -> Result<impl IntoResponse, Response> {
     // Process query parameters
     let timeframe = params.timeframe.unwrap_or(30).min(365); // Default to 30 days, max 1 year
-    
+
     info!("Generating blood pressure insights for {} days", timeframe);
-    
+
     // Get all readings for the specified timeframe
     let now = Utc::now();
     let start_date = now - chrono::Duration::days(timeframe as i64);
     let start_date_str = Some(start_date.to_rfc3339());
     let end_date_str = Some(now.to_rfc3339());
-    
+
     // Get readings within timeframe
     match service.get_filtered_readings(start_date_str, end_date_str, None, None, None).await {
         Ok((domain_readings, _)) => {
@@ -502,11 +502,11 @@ pub async fn get_blood_pressure_insights(
 }
 
 // Convert public request to domain request
-fn convert_to_domain_request(request: CreateBloodPressureRequest) -> MyHealthGuide_domain::entities::blood_pressure::CreateBloodPressureRequest {
+fn convert_to_domain_request(request: CreateBloodPressureRequest) -> my_health_guide_domain::entities::blood_pressure::CreateBloodPressureRequest {
     let timestamp = request.timestamp
         .map_or_else(|| Utc::now().to_rfc3339(), |dt| dt.to_rfc3339());
-        
-    MyHealthGuide_domain::entities::blood_pressure::CreateBloodPressureRequest {
+
+    my_health_guide_domain::entities::blood_pressure::CreateBloodPressureRequest {
         systolic: request.systolic as u16,
         diastolic: request.diastolic as u16,
         pulse: request.pulse.map(|p| p as u16),
@@ -524,7 +524,7 @@ fn convert_to_public_reading(reading: DomainBloodPressureReading) -> crate::enti
         Ok(dt) => dt.with_timezone(&chrono::Utc),
         Err(_) => chrono::Utc::now(), // Fallback to current time if parsing fails
     };
-    
+
     crate::entities::blood_pressure::BloodPressureReading {
         id: uuid::Uuid::parse_str(&reading.id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
         systolic: reading.systolic as i32,
@@ -540,7 +540,7 @@ fn convert_to_public_reading(reading: DomainBloodPressureReading) -> crate::enti
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_pagination_link_generation() {
         let query_params = HistoryQueryParams {
@@ -550,29 +550,29 @@ mod tests {
             offset: Some(20),
             sort: Some("desc".to_string()),
         };
-        
+
         // Test with more results available
         let (next, prev) = generate_pagination_links(50, 10, 20, "/api/v1/bloodpressure", &query_params);
-        
+
         assert!(next.is_some());
         assert!(prev.is_some());
-        
+
         let next_url = next.unwrap();
         let prev_url = prev.unwrap();
-        
+
         assert!(next_url.contains("offset=30"));
         assert!(prev_url.contains("offset=10"));
-        
+
         // Test boundary conditions
-        
+
         // First page
         let (next, prev) = generate_pagination_links(50, 10, 0, "/api/v1/bloodpressure", &query_params);
         assert!(next.is_some());
         assert!(prev.is_none()); // No previous page
-        
+
         // Last page
         let (next, prev) = generate_pagination_links(50, 10, 40, "/api/v1/bloodpressure", &query_params);
         assert!(next.is_none()); // No next page
         assert!(prev.is_some());
     }
-} 
+}

@@ -361,6 +361,7 @@ pub fn decode_token_claims(token: &str) -> Result<Auth0Claims, Box<dyn StdError 
 }
 
 /// Custom claims validator
+#[allow(dead_code)]
 fn validate_claims(audience: &str, issuer: &str) -> impl Fn(serde_json::Value) -> Result<(), SecurityError> + Clone {
     let audience = audience.to_string();
     let issuer = issuer.to_string();
